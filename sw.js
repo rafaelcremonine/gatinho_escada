@@ -1,7 +1,7 @@
 // Service worker — deixa o app do gatinho funcionar offline
-const CACHE = 'gatinho-escada-v1';
+const CACHE = 'gatinho-escada-v2';
 const ASSETS = [
-  './', './index.html', './app.js', './vendor.js', './style.css', './manifest.json',
+  './', './index.html', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-180.png', './icons/maskable-512.png'
 ];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
