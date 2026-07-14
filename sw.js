@@ -1,5 +1,5 @@
 // Service worker — deixa o app do gatinho funcionar offline
-const CACHE = 'gatinho-escada-v2';
+const CACHE = 'gatinho-escada-v3';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-180.png', './icons/maskable-512.png'

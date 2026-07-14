@@ -4,31 +4,190 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Gatinho na Escada</title>
-<meta name="theme-color" content="#1a2030">
+<meta name="theme-color" content="#ffd9e6">
 <link rel="manifest" href="./manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Gatinho na Escada">
 <link rel="apple-touch-icon" href="./icons/icon-180.png">
 <link rel="icon" href="./icons/icon-192.png">
-<link rel="stylesheet" href="./style.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #ffe3ef; touch-action: none; }
+  canvas { display: block; position: fixed; inset: 0; width: 100%; height: 100%; }
+
+  .controls { position: fixed; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
+  .ctl-btn { width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.85); border: 2px solid #f4b8cc; color: #d16a8c; border-radius: 16px; cursor: pointer; box-shadow: 0 3px 8px rgba(209,106,140,0.2); transition: transform .12s; }
+  .ctl-btn:active { transform: scale(0.92); }
+  .ctl-btn svg { width: 24px; height: 24px; }
+  .chip { position: fixed; top: max(16px, env(safe-area-inset-top)); left: 16px; z-index: 10; background: rgba(255,255,255,0.85); border: 2px solid #f4b8cc; color: #c85d80; border-radius: 16px; padding: 10px 16px; font-size: 15px; font-weight: 800; box-shadow: 0 3px 8px rgba(209,106,140,0.2); }
+  .chip small { font-weight: 600; opacity: 0.8; }
+  .hint { position: fixed; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 10; background: rgba(255,255,255,0.8); border: 2px solid #f4b8cc; color: #b96c86; border-radius: 14px; padding: 8px 16px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+</style>
 </head>
 <body>
-  <div id="canvas-wrap"></div>
+  <canvas id="cv"></canvas>
+
+  <div class="chip">🐾 Andares: <span id="floors">0</span></div>
 
   <div class="controls">
-    <button class="ctl-btn active" id="play-btn" title="Pausar / continuar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
-    <button class="ctl-btn" id="speed-btn" title="Velocidade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
-    <button class="ctl-btn" id="cam-btn" title="Mudar câmera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></button>
+    <button class="ctl-btn" id="play" title="Pausar / continuar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+    <button class="ctl-btn" id="speed" title="Velocidade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>
   </div>
+  <div class="hint">um gatinho subindo pra sempre 💕</div>
 
-  <div class="info">
-    <div><b>🐱 Gatinho na escada espiral</b></div>
-    <div style="margin-top:8px">Subindo pra sempre! Arraste pra olhar em volta.</div>
-    <div style="margin-top:4px" id="spd">Velocidade: normal</div>
-  </div>
+<script>
+(function () {
+  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 
-  <script src="./vendor.js"></script>
-  <script src="./app.js"></script>
+  // ---------- gatinho fofo (SVG) ----------
+  const OL = '#6b5d5a', FUR = '#fffdf8', PINK = '#f7b7c8', INEAR = '#f4a9bf', NOSE = '#e8899b';
+  const catSVG = `
+  <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 235'>
+    <g fill='${FUR}' stroke='${OL}' stroke-width='5' stroke-linejoin='round' stroke-linecap='round'>
+      <path d='M58 185 q-42 -2 -44 -46 q-1 -28 22 -31 q16 -2 17 14 q1 13 -13 12'/>
+      <path d='M110 118 q58 0 58 60 q0 38 -58 38 q-58 0 -58 -38 q0 -60 58 -60 z'/>
+      <ellipse cx='90' cy='214' rx='17' ry='12'/>
+      <ellipse cx='130' cy='214' rx='17' ry='12'/>
+      <circle cx='110' cy='82' r='60'/>
+      <path d='M66 46 L57 6 L100 35 Z'/>
+      <path d='M154 46 L163 6 L120 35 Z'/>
+    </g>
+    <path d='M72 42 L67 17 L92 34 Z' fill='${INEAR}'/>
+    <path d='M148 42 L153 17 L128 34 Z' fill='${INEAR}'/>
+    <path d='M82 84 q11 13 22 0' fill='none' stroke='${OL}' stroke-width='5.5' stroke-linecap='round'/>
+    <path d='M116 84 q11 13 22 0' fill='none' stroke='${OL}' stroke-width='5.5' stroke-linecap='round'/>
+    <ellipse cx='72' cy='102' rx='12' ry='7.5' fill='${PINK}'/>
+    <ellipse cx='148' cy='102' rx='12' ry='7.5' fill='${PINK}'/>
+    <path d='M104 96 h12 l-6 7 z' fill='${NOSE}' stroke='${OL}' stroke-width='2'/>
+    <path d='M110 103 q-7 8 -14 3 M110 103 q7 8 14 3' fill='none' stroke='${OL}' stroke-width='3.6' stroke-linecap='round'/>
+    <g stroke='${OL}' stroke-width='3' stroke-linecap='round'>
+      <path d='M58 92 h-32'/><path d='M60 101 l-32 7'/>
+      <path d='M162 92 h32'/><path d='M160 101 l32 7'/>
+    </g>
+  </svg>`;
+  const catImg = new Image();
+  catImg.src = 'data:image/svg+xml;charset=utf8,' + encodeURIComponent(catSVG);
+  let catReady = false; catImg.onload = () => catReady = true;
+
+  // ---------- canvas ----------
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let W, H, DPR;
+  function resize() {
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  addEventListener('resize', resize); resize();
+
+  // ---------- estado ----------
+  let offset = 0;           // em degraus
+  const SPEEDS = [0.7, 1.25, 2.1], SNAME = ['🐢 devagar', '😺 normal', '🐇 rápido'];
+  let sIdx = 1, playing = true, last = 0;
+
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#ffe0ee'); g.addColorStop(1, '#fff2f6');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // nuvenzinhas / bolhas fofas
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    const t = offset * 12;
+    for (let i = 0; i < 6; i++) {
+      const bx = ((i * 220 - t * 0.3) % (W + 240)) - 120 + (W % 200);
+      const by = 60 + (i % 3) * 90 + Math.sin(offset * 0.6 + i) * 8;
+      ctx.beginPath(); ctx.arc(bx, by, 26, 0, 7); ctx.arc(bx + 26, by + 6, 20, 0, 7); ctx.arc(bx - 24, by + 8, 18, 0, 7); ctx.fill();
+    }
+    // coraçõezinhos subindo
+    ctx.fillStyle = 'rgba(247,150,180,0.5)';
+    for (let i = 0; i < 5; i++) {
+      const hx = (i * 160 + 40) % W;
+      const hy = (H - ((offset * 40 + i * 130) % (H + 120))) + 60;
+      heart(hx, hy, 9);
+    }
+  }
+  function heart(x, y, s) { ctx.beginPath(); ctx.moveTo(x, y + s * 0.4); ctx.bezierCurveTo(x, y, x - s, y - s * 0.2, x - s, y - s * 0.5); ctx.bezierCurveTo(x - s, y - s, x, y - s, x, y - s * 0.4); ctx.bezierCurveTo(x, y - s, x + s, y - s, x + s, y - s * 0.5); ctx.bezierCurveTo(x + s, y - s * 0.2, x, y, x, y + s * 0.4); ctx.fill(); }
+
+  // degrau fofo centrado em (x,y)
+  function drawStep(x, y, w, h) {
+    ctx.fillStyle = '#f0bccd'; rr(x - w / 2, y - h / 2, w, h + 13, 11); ctx.fill();       // frente
+    ctx.fillStyle = '#fff7fb'; ctx.strokeStyle = '#e79bb4'; ctx.lineWidth = 3.5;
+    rr(x - w / 2, y - h / 2, w, h, 11); ctx.fill(); ctx.stroke();                          // topo
+  }
+
+  // coluna central da espiral
+  function drawColumn(cx) {
+    const w = Math.min(74, W * 0.12);
+    ctx.fillStyle = '#ffe6f0'; ctx.strokeStyle = '#eaa9c0'; ctx.lineWidth = 4;
+    rr(cx - w / 2, -12, w, H + 24, 22); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(234,169,192,0.22)'; rr(cx + w / 2 - 15, -12, 14, H + 24, 8); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; rr(cx - w / 2 + 8, -12, 9, H + 24, 6); ctx.fill();
+  }
+
+  function draw() {
+    drawBackground();
+    const cx = W * 0.5, cyStep = H * 0.56;
+    const Rx = Math.min(160, W * 0.26), riseY = 33, dth = Math.PI * 2 / 9;
+    const frac = offset - Math.floor(offset);
+
+    // monta os degraus da espiral (janela ao redor do gato)
+    const arr = [];
+    for (let i = -3; i <= 16; i++) {
+      const rel = i - frac;
+      const th = rel * dth;
+      const depth = Math.cos(th);
+      arr.push({ x: cx + Rx * Math.sin(th), y: cyStep - rel * riseY + depth * 11, depth, sc: 0.66 + 0.34 * ((depth + 1) / 2) });
+    }
+    arr.sort((a, b) => a.depth - b.depth);
+
+    for (const s of arr) if (s.depth < -0.04) drawStep(s.x, s.y, 150 * s.sc, 30 * s.sc);  // atrás da coluna
+    drawColumn(cx);
+    for (const s of arr) if (s.depth >= -0.04) drawStep(s.x, s.y, 150 * s.sc, 30 * s.sc); // na frente
+
+    // gatinho na frente da coluna, pulando degrau a degrau
+    const hop = Math.sin(Math.PI * frac);
+    const catBase = cyStep + 11;
+    const catY = catBase - hop * 58;
+    const land = Math.max(0, 1 - Math.min(frac, 1 - frac) * 6);
+    const sy = 1 + hop * 0.12 - land * 0.16;
+    const sx = 1 - hop * 0.08 + land * 0.14;
+    const tilt = Math.sin(Math.PI * frac) * -0.16;
+
+    if (catReady) {
+      const CW = 128, CH = CW * (235 / 220);
+      ctx.save(); ctx.globalAlpha = 0.16 + hop * 0.05; ctx.fillStyle = '#c77';
+      ctx.beginPath(); ctx.ellipse(cx, catBase + 6, 44 - hop * 16, 11 - hop * 5, 0, 0, 7); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(cx, catY); ctx.rotate(tilt); ctx.scale(sx, sy);
+      ctx.drawImage(catImg, -CW / 2, -CH + 6, CW, CH); ctx.restore();
+    }
+
+    document.getElementById('floors').textContent = Math.floor(offset);
+  }
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - (last || now)) / 1000); last = now;
+    if (playing) offset += SPEEDS[sIdx] * dt;
+    draw();
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- controles ----------
+  const playBtn = document.getElementById('play');
+  playBtn.addEventListener('click', () => {
+    playing = !playing;
+    playBtn.querySelector('svg').innerHTML = playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M8 5v14l11-7z"/>';
+  });
+  const spd = document.getElementById('speed');
+  const hint = document.querySelector('.hint');
+  spd.addEventListener('click', () => { sIdx = (sIdx + 1) % SPEEDS.length; hint.textContent = SNAME[sIdx]; });
+
+  window.__gato = { setOffset: (o) => { offset = o; } };
+})();
+</script>
 </body>
 </html>
