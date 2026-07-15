@@ -39,7 +39,9 @@
 
 <script>
 (function () {
-  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  // Faxina: remove qualquer versão antiga em cache (evita mostrar o app velho)
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+  if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
 
   // ---------- gatinho fofo (SVG) ----------
   const OL = '#6b5d5a', FUR = '#fffdf8', PINK = '#f7b7c8', INEAR = '#f4a9bf', NOSE = '#e8899b';
